@@ -80,15 +80,37 @@ removed_count = len(result["segments"]) - len(cleaned_segments)
 print(f"✓ {removed_count}개 반복 구간 제거됨")
 
 # 3. 결과 저장
-output_path = f"{RESULT_DIR}/{video_title}_transcript.txt"
-with open(output_path, "w", encoding="utf-8") as f:
-    f.write(f"영상 제목: {video_title}\n")
-    f.write(f"총 길이: {int(cleaned_segments[-1]['end']//60)}분\n")
-    f.write(f"반복 제거: {removed_count}개 구간\n")
-    f.write("="*50 + "\n\n")
-    for seg in cleaned_segments:
-        start = f"{int(seg['start']//60):02d}:{int(seg['start']%60):02d}"
-        end   = f"{int(seg['end']//60):02d}:{int(seg['end']%60):02d}"
-        f.write(f"[{start} ~ {end}] {seg['text'].strip()}\n")
+MAX_CHARS = 6000  # Claude API 토큰 제한 맞춤
 
-print(f"\n✓ 완료! 결과 파일: {output_path}")
+full_lines = []
+for seg in cleaned_segments:
+    start = f"{int(seg['start']//60):02d}:{int(seg['start']%60):02d}"
+    end   = f"{int(seg['end']//60):02d}:{int(seg['end']%60):02d}"
+    full_lines.append(f"[{start} ~ {end}] {seg['text'].strip()}")
+
+full_text = "\n".join(full_lines)
+
+chunks = []
+current_chunk = ""
+for line in full_lines:
+    if len(current_chunk) + len(line) > MAX_CHARS:
+        chunks.append(current_chunk.strip())
+        current_chunk = line + "\n"
+    else:
+        current_chunk += line + "\n"
+if current_chunk:
+    chunks.append(current_chunk.strip())
+
+print(f"✓ 총 {len(chunks)}개 청크로 분할됨")
+
+for i, chunk in enumerate(chunks, 1):
+    output_path = f"{RESULT_DIR}/{video_title}_transcript_part{i}.txt"
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(f"영상 제목: {video_title}\n")
+        f.write(f"파트: {i} / {len(chunks)}\n")
+        f.write(f"반복 제거: {removed_count}개 구간\n")
+        f.write("="*50 + "\n\n")
+        f.write(chunk)
+    print(f"✓ 저장 완료: {output_path}")
+
+print(f"\n✓ 전체 완료! results/ 폴더 확인하세요.")

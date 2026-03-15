@@ -1,2 +1,6 @@
 venv/*
 audio/*
+results/*
+analyzed/*
+*.json
+*.txt
